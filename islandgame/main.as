@@ -8,6 +8,11 @@
 	import flash.ui.Mouse;
 	import flash.system.System;
 
+	import flash.net.FileReference;
+    import com.adobe.PNGEncoder;
+	import flash.utils.ByteArray;
+	import flash.display.BitmapData;
+
 	public class main extends MovieClip {
 
 		public var island: gameObj;
@@ -20,6 +25,7 @@
 		public var debug: TextField = new TextField();
 		public var memory: TextField = new TextField();
 		public var btns: TextField = new TextField();
+		public var ptext: TextField = new TextField();
 
 		public var tree: treeObj;
 		public var treePoint: LPoint;
@@ -35,7 +41,7 @@
 		public var npcPoints: Array = new Array();
 
 		public var radius: int = 100;
-		public var t: int = 300; //possible points for trees
+		public var t: int = 350; //possible points for trees
 		public var radius2: int = 50;
 		public var n: int = 5;
 
@@ -47,7 +53,10 @@
 		public var speed2: Number = 0.5;
 
 		public var ts: int = 0;
+		public var circle: Sprite = new Sprite();
 		var click: Boolean = false;
+
+		var water, shallow, sand, land = false;
 
 		public function main() {
 
@@ -91,6 +100,29 @@
 
 			addChild(island);
 			island.isl.addChild(plyrPoint);
+
+			setInterval(draw, 1)
+			function draw() {
+				var globalPt: Point = new Point(mouseX-15, mouseY-15);
+				var localPt: Point = island.isl.land.globalToLocal(globalPt);
+				if (click == true) {
+					circle.graphics.beginFill(0x4FD3B3);
+
+					if (water == true) {
+						circle.graphics.beginFill(0x00CC99);
+					} else if (shallow == true) {
+						circle.graphics.beginFill(0x4FD3B3);
+					} else if (sand == true) {
+						circle.graphics.beginFill(0xFFFB89);
+					} else if (land == true) {
+						circle.graphics.beginFill(0x83CE4E);
+					}
+					circle.graphics.drawRect(localPt.x, localPt.y, 4, 4);
+					circle.graphics.endFill();
+				}
+			}
+
+			island.isl.land.addChild(circle);
 
 			for (var i: int = 0; i < t; i++) {
 				var rand1 = Math.random() * 2 * radius - radius;
@@ -143,9 +175,13 @@
 						addChild(treeObjs[zz]);
 					}
 				}
+				if (contains(ptext)) {
+					removeChild(ptext);
+				}
 				if (contains(cursor1)) {
 					removeChild(cursor1);
 				}
+				addChild(ptext);
 				addChild(cursor1);
 			}
 
@@ -210,7 +246,7 @@
 
 			cursor1.x = mouseX;
 			cursor1.y = mouseY;
-
+			
 			Control();
 			collis(plyrPoint, plyr);
 			var mem: int = System.totalMemory;
@@ -253,15 +289,14 @@
 
 		var prevX: int = 0;
 		var curX: int = 0;
-		var speed: int = 2;
 
 		function mouseRotation(e: MouseEvent) {
 			prevX = curX;
 			curX = stage.mouseX;
 			if (prevX > curX) {
-				island.isl.rotation += speed;
+				island.isl.rotation += 2;
 			} else if (prevX < curX) {
-				island.isl.rotation -= speed;
+				island.isl.rotation -= 2;
 			}
 		}
 
@@ -280,6 +315,19 @@
 		}
 
 		public function on_key_down(e: KeyboardEvent): void {
+			if (e.keyCode == 82) {
+				for (var il: int = 0; il < t; il++) {
+					var globalPointA: Point = treePoints[il].localToGlobal(new Point());
+					var LocalPointA: Point = stage.globalToLocal(globalPointA);
+					var color = getColorSample(LocalPointA.x, LocalPointA.y + 1)
+					if (color == 469  || color == 357) {
+						treePoints[il].y = 300;
+						if (contains(treePoints[il])) {
+							island.isl.removeChild(treePoints[il]);
+						}
+					}
+				}
+			}
 			//controls
 			if (e.keyCode == 87) { //w
 				forward = true;
@@ -296,7 +344,35 @@
 
 			if (e.keyCode == 32) { //click
 				click = true;
+				//island.isl.land.addChild(circle);
 			}
+
+			//colors
+			if (e.keyCode == 49) {
+				water = true;
+				shallow = false;
+				sand = false;
+				land = false;
+			}
+			if (e.keyCode == 50) {
+				shallow = true;
+				water = false;
+				sand = false;
+				land = false;
+			}
+			if (e.keyCode == 51) {
+				sand = true;
+				water = false;
+				shallow = false;
+				land = false;
+			}
+			if (e.keyCode == 52) {
+				land = true;
+				water = false;
+				shallow = false;
+				sand = false;
+			}
+
 
 		}
 
@@ -316,11 +392,36 @@
 			}
 			if (e.keyCode == 32) { //click
 				click = false;
+				savebmp();
+				circle.graphics.clear();
+				
 			}
 		}
 
 		public function getRand(max: int, min: int) {
 			return (Math.floor(Math.random() * (max - (min) + 1)) + (min));
+		}
+
+		private var _islandBitmap: BitmapData;
+
+		function savebmp(){
+			if (_islandBitmap == null) {
+				_islandBitmap = new BitmapData(200,150);
+			}
+			_islandBitmap.draw(island.isl.land);
+
+			//var byteArray: ByteArray = PNGEncoder.encode(_islandBitmap);
+			var bitmap: Bitmap = new Bitmap(_islandBitmap);
+			
+
+			//var fileReference: FileReference = new FileReference();
+			//fileReference.save(byteArray, "img.png");
+			
+			//island.isl.land.addChild(bitmap);
+			if(contains(bitmap)){
+				island.isl.land.removeChild(bitmap);
+			}
+			island.isl.land.addChildAt(bitmap, island.isl.land.numChildren-1);
 		}
 
 		private var _stageBitmap: BitmapData;
@@ -341,3 +442,4 @@
 	}
 
 }
+			
